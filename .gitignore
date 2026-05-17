@@ -1,0 +1,9 @@
+.env
+config.json
+__pycache__/
+*.py[cod]
+.kaggle/
+*.log
+.venv/
+venv/
+.vscode/
