@@ -33,6 +33,7 @@ class LeaderboardCog(commands.Cog):
     # ── Slash commands ──────────────────────────────────────────────────────
 
     @app_commands.command(name="leaderboard", description="Show the current Kaggle leaderboard (top 10)")
+    @app_commands.checks.cooldown(rate=1, per=60, key=lambda i: i.guild_id)
     async def leaderboard(self, interaction: discord.Interaction):
         cfg = load_config()
         competition = cfg.get("competition")
@@ -49,6 +50,13 @@ class LeaderboardCog(commands.Cog):
             return
         embed = _build_embed(competition, rows)
         await interaction.followup.send(embed=embed)
+
+    @leaderboard.error
+    async def leaderboard_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(error, app_commands.CommandOnCooldown):
+            await interaction.response.send_message(
+                f"Slow down! Try again in **{error.retry_after:.0f}s**.", ephemeral=True
+            )
 
     @app_commands.command(name="track", description="Watch a team and get alerted when their rank changes")
     @app_commands.describe(team="Exact team name as shown on the leaderboard")
