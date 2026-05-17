@@ -11,6 +11,7 @@ class ConfigCog(commands.Cog):
 
     @app_commands.command(name="setcompetition", description="Set the Kaggle competition to track")
     @app_commands.describe(slug="The Kaggle competition slug, e.g. titanic")
+    @app_commands.default_permissions(manage_guild=True)
     async def set_competition(self, interaction: discord.Interaction, slug: str):
         cfg = load_config()
         cfg["competition"] = slug
@@ -18,6 +19,7 @@ class ConfigCog(commands.Cog):
         await interaction.response.send_message(f"Competition set to **{slug}**.")
 
     @app_commands.command(name="setchannel", description="Set the channel for leaderboard auto-updates")
+    @app_commands.default_permissions(manage_guild=True)
     async def set_channel(self, interaction: discord.Interaction):
         cfg = load_config()
         cfg["update_channel_id"] = interaction.channel_id
@@ -26,6 +28,7 @@ class ConfigCog(commands.Cog):
 
     @app_commands.command(name="setinterval", description="Set how often (in minutes) the leaderboard is checked")
     @app_commands.describe(minutes="Polling interval in minutes (minimum 5)")
+    @app_commands.default_permissions(manage_guild=True)
     async def set_interval(self, interaction: discord.Interaction, minutes: int):
         if minutes < 5:
             await interaction.response.send_message("Minimum interval is 5 minutes.", ephemeral=True)
