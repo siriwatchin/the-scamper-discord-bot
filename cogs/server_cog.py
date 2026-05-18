@@ -7,6 +7,11 @@ from server_client import get_jobs, get_job_info, get_balance, ACCOUNT
 
 log = logging.getLogger(__name__)
 
+def _bar(pct: float, width: int = 12) -> str:
+    filled = round(min(pct, 1.0) * width)
+    return "█" * filled + "░" * (width - filled)
+
+
 STATE_COLOR = {
     "RUNNING": discord.Color.green(),
     "PENDING": discord.Color.yellow(),
@@ -78,15 +83,44 @@ class ServerCog(commands.Cog):
             await interaction.followup.send("Failed to fetch balance. Check bot logs for details.", ephemeral=True)
             return
 
+        if data is None:
+            await interaction.followup.send(f"No balance data found for account `{ACCOUNT}`.", ephemeral=True)
+            return
+
         embed = discord.Embed(title=f"Account Balance — {ACCOUNT}", color=discord.Color.gold())
-        if isinstance(data, dict):
-            for key, value in data.items():
-                if isinstance(value, (str, int, float)):
-                    embed.add_field(name=key, value=str(value), inline=True)
-                elif isinstance(value, list) and value:
-                    embed.add_field(name=key, value="\n".join(str(v) for v in value[:5]), inline=False)
-        else:
-            embed.description = f"```{str(data)[:1000]}```"
+
+        pct_used = data.get("percent_used", 0)
+        su_used = data.get("su_used", 0)
+        su_alloc = data.get("su_alloc", 0)
+        su_remaining = data.get("su_remaining", 0)
+        embed.add_field(
+            name="Service Units",
+            value=(
+                f"{_bar(pct_used)}\n"
+                f"Used: `{su_used:,}` | Alloc: `{su_alloc:,}` | Remaining: `{su_remaining:,}`\n"
+                f"({pct_used * 100:.1f}% used)"
+            ),
+            inline=False,
+        )
+
+        for label, used_key, alloc_key, remaining_key in [
+            ("Compute (hrs)", "su_used_compute", "su_alloc_compute", "su_remaining_compute"),
+            ("GPU (hrs)",     "su_used_gpu",     "su_alloc_gpu",     "su_remaining_gpu"),
+            ("Memory (hrs)",  "su_used_memory",  "su_alloc_memory",  "su_remaining_memory"),
+        ]:
+            used = data.get(used_key, 0)
+            alloc = data.get(alloc_key, 0)
+            remaining = data.get(remaining_key, 0)
+            pct = (used / alloc) if alloc else 0
+            embed.add_field(
+                name=label,
+                value=(
+                    f"{_bar(pct)}\n"
+                    f"Used: `{used:.1f}` | Alloc: `{alloc:.1f}` | Remaining: `{remaining:.1f}`"
+                ),
+                inline=False,
+            )
+
         await interaction.followup.send(embed=embed)
 
 
