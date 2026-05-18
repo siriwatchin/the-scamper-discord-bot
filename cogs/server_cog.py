@@ -20,7 +20,7 @@ class ServerCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="jobs", description="Show running/pending jobs for the team")
+    @app_commands.command(name="server_jobs", description="Show running/pending jobs for the team")
     async def jobs(self, interaction: discord.Interaction):
         await interaction.response.defer()
         try:
@@ -44,7 +44,7 @@ class ServerCog(commands.Cog):
             embed.description = "\n\n".join(lines)
         await interaction.followup.send(embed=embed)
 
-    @app_commands.command(name="jobinfo", description="Show details of a specific job")
+    @app_commands.command(name="server_jobinfo", description="Show details of a specific job")
     @app_commands.describe(job_id="The numeric job ID")
     async def jobinfo(self, interaction: discord.Interaction, job_id: int):
         await interaction.response.defer()
@@ -68,7 +68,7 @@ class ServerCog(commands.Cog):
         embed.add_field(name="Exit Code", value=str(info["exit_code"]), inline=True)
         await interaction.followup.send(embed=embed)
 
-    @app_commands.command(name="balance", description="Show compute/GPU/memory allocation balance for the team")
+    @app_commands.command(name="server_balance", description="Show compute/GPU/memory allocation balance for the team")
     async def balance(self, interaction: discord.Interaction):
         await interaction.response.defer()
         try:

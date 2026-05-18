@@ -103,9 +103,9 @@ Stop with `Ctrl+C`.
 
 | Command | Description |
 |---------|-------------|
-| `/jobs` | Show all running/pending jobs for the configured account |
-| `/jobinfo <job_id>` | Show details of a specific job (state, runtime, nodes, exit code) |
-| `/balance` | Show compute/GPU/memory allocation balance for the account |
+| `/server_jobs` | Show all running/pending jobs for the configured account |
+| `/server_jobinfo <job_id>` | Show details of a specific job (state, runtime, nodes, exit code) |
+| `/server_balance` | Show compute/GPU/memory allocation balance for the account |
 
 ---
 
