@@ -24,7 +24,7 @@ async def get_jobs() -> list[dict]:
         if isinstance(state, list):
             state = state[0]
         start = j.get("start_time", {}).get("number", 0)
-        elapsed = (now - start) if start else 0
+        elapsed = (now - start) if (start and start <= now) else None
         limit_minutes = j.get("time_limit", {}).get("number", 0)
         jobs.append({
             "job_id": j.get("job_id", "?"),
@@ -32,7 +32,7 @@ async def get_jobs() -> list[dict]:
             "user": j.get("user_name", "?"),
             "state": state,
             "nodes": j.get("nodes", "?"),
-            "elapsed": _fmt_seconds(elapsed),
+            "elapsed": _fmt_seconds(elapsed) if elapsed is not None else "—",
             "limit": _fmt_seconds(limit_minutes * 60) if limit_minutes else "∞",
         })
     return jobs
@@ -49,14 +49,18 @@ async def get_job_info(job_id: int) -> dict | None:
     if isinstance(state, list):
         state = state[0]
     elapsed = j.get("time", {}).get("elapsed", 0)
+    limit_minutes = j.get("time", {}).get("limit", {}).get("number", 0)
+    nodes = j.get("nodes", "") or ""
     exit_code = j.get("exit_code", {}).get("return_code", {}).get("number", "?")
     return {
         "job_id": j.get("job_id", job_id),
         "name": j.get("name", "?"),
         "user": j.get("user", "?"),
         "state": state,
-        "nodes": j.get("nodes", "?"),
+        "partition": j.get("partition", "?"),
+        "nodes": nodes if nodes and nodes != "None assigned" else "—",
         "elapsed": _fmt_seconds(elapsed),
+        "limit": _fmt_seconds(limit_minutes * 60) if limit_minutes else "∞",
         "exit_code": exit_code,
     }
 

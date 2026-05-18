@@ -82,10 +82,11 @@ class ServerCog(commands.Cog):
 
         color = STATE_COLOR.get(info["state"], discord.Color.greyple())
         embed = discord.Embed(title=f"Job {info['job_id']}: {info['name']}", color=color)
-        embed.add_field(name="User", value=info["user"], inline=True)
         embed.add_field(name="State", value=info["state"], inline=True)
+        embed.add_field(name="Partition", value=info["partition"], inline=True)
         embed.add_field(name="Nodes", value=info["nodes"], inline=True)
         embed.add_field(name="Elapsed", value=info["elapsed"], inline=True)
+        embed.add_field(name="Time Limit", value=info["limit"], inline=True)
         embed.add_field(name="Exit Code", value=str(info["exit_code"]), inline=True)
         await interaction.followup.send(embed=embed)
 
