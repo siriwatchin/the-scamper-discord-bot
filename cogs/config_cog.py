@@ -41,10 +41,10 @@ class ConfigCog(commands.Cog):
             save_config(cfg)
         await interaction.response.send_message(f"Auto-update channel set to <#{interaction.channel_id}>.")
 
-    @app_commands.command(name="setinterval", description="Set how often (in minutes) the leaderboard is checked")
+    @app_commands.command(name="setleaderboardinterval", description="Set how often (in minutes) the leaderboard is checked")
     @app_commands.describe(minutes="Polling interval in minutes (minimum 5)")
     @is_owner_or_manager()
-    async def set_interval(self, interaction: discord.Interaction, minutes: int):
+    async def set_leaderboard_interval(self, interaction: discord.Interaction, minutes: int):
         if minutes < 5:
             await interaction.response.send_message("Minimum interval is 5 minutes.", ephemeral=True)
             return
@@ -52,7 +52,7 @@ class ConfigCog(commands.Cog):
             cfg = load_config()
             cfg["interval_minutes"] = minutes
             save_config(cfg)
-        await interaction.response.send_message(f"Polling interval set to **{minutes} minutes**.")
+        await interaction.response.send_message(f"Leaderboard polling interval set to **{minutes} minutes**.")
 
     @app_commands.command(name="setleaderboard", description="Turn automatic leaderboard posting on or off")
     @app_commands.describe(enabled="on or off")
@@ -84,7 +84,7 @@ class ConfigCog(commands.Cog):
             cfg = load_config()
         embed = discord.Embed(title="Bot Status", color=discord.Color.blurple())
         embed.add_field(name="Competition", value=cfg.get("competition") or "—", inline=True)
-        embed.add_field(name="Interval", value=f"{cfg.get('interval_minutes', 30)} min", inline=True)
+        embed.add_field(name="Leaderboard Interval", value=f"{cfg.get('interval_minutes', 30)} min", inline=True)
         channel_id = cfg.get("update_channel_id")
         embed.add_field(name="Update Channel", value=f"<#{channel_id}>" if channel_id else "—", inline=True)
         tracked = cfg.get("tracked_teams", [])

@@ -68,7 +68,7 @@ Stop with `Ctrl+C`.
 |---------|-------------|
 | `/setcompetition <slug>` | Set the Kaggle competition to track |
 | `/setchannel` | Set the current channel to receive auto-updates |
-| `/setinterval <minutes>` | How often to poll the leaderboard (min 5, default 30) |
+| `/setleaderboardinterval <minutes>` | How often to poll the leaderboard (min 5, default 30) |
 | `/setleaderboard <on/off>` | Turn automatic leaderboard posting on or off (default on) |
 | `/setrankchanges <on/off>` | Turn rank change alerts on or off (default on) |
 
@@ -76,7 +76,7 @@ Stop with `Ctrl+C`.
 ```
 /setcompetition titanic
 /setchannel
-/setinterval 15
+/setleaderboardinterval 15
 /setleaderboard False
 /setrankchanges True
 ```
@@ -141,7 +141,7 @@ logs/
 2. In your team's Discord channel, run:
    /setcompetition <slug>
    /setchannel
-   /setinterval 15
+   /setleaderboardinterval 15
    /track <your team name>
 3. Run /leaderboard to confirm Kaggle data is being fetched correctly
 4. Run /jobs to confirm server connection is working (if SERVER_* is configured)
