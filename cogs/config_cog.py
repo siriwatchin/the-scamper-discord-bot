@@ -32,7 +32,7 @@ class ConfigCog(commands.Cog):
             save_config(cfg)
         await interaction.response.send_message(f"Competition set to **{slug}**.")
 
-    @app_commands.command(name="setchannel", description="Set the channel for leaderboard auto-updates")
+    @app_commands.command(name="setchannel", description="Set the channel for all bot notifications (leaderboard, rank alerts, job completion)")
     @is_owner_or_manager()
     async def set_channel(self, interaction: discord.Interaction):
         async with config_lock:
@@ -42,7 +42,7 @@ class ConfigCog(commands.Cog):
         await interaction.response.send_message(f"Auto-update channel set to <#{interaction.channel_id}>.")
 
     @app_commands.command(name="setleaderboardinterval", description="Set how often (in minutes) the leaderboard is checked")
-    @app_commands.describe(minutes="Polling interval in minutes (minimum 5)")
+    @app_commands.describe(minutes="How often to fetch the Kaggle leaderboard, in minutes (minimum 5)")
     @is_owner_or_manager()
     async def set_leaderboard_interval(self, interaction: discord.Interaction, minutes: int):
         if minutes < 5:
@@ -54,8 +54,8 @@ class ConfigCog(commands.Cog):
             save_config(cfg)
         await interaction.response.send_message(f"Leaderboard polling interval set to **{minutes} minutes**.")
 
-    @app_commands.command(name="setleaderboard", description="Turn automatic leaderboard posting on or off")
-    @app_commands.describe(enabled="on or off")
+    @app_commands.command(name="setleaderboard", description="Enable or disable automatic leaderboard posting to the channel")
+    @app_commands.describe(enabled="True to enable, False to disable")
     @is_owner_or_manager()
     async def set_leaderboard(self, interaction: discord.Interaction, enabled: bool):
         async with config_lock:
@@ -66,8 +66,8 @@ class ConfigCog(commands.Cog):
             f"Auto leaderboard post: **{'on' if enabled else 'off'}**.", ephemeral=True
         )
 
-    @app_commands.command(name="setrankchanges", description="Turn rank change alerts on or off")
-    @app_commands.describe(enabled="on or off")
+    @app_commands.command(name="setrankchanges", description="Enable or disable rank change alerts for tracked teams")
+    @app_commands.describe(enabled="True to enable, False to disable")
     @is_owner_or_manager()
     async def set_rank_changes(self, interaction: discord.Interaction, enabled: bool):
         async with config_lock:
