@@ -52,6 +52,7 @@ async def get_job_info(job_id: int) -> dict | None:
     limit_minutes = j.get("time", {}).get("limit", {}).get("number", 0)
     nodes = j.get("nodes", "") or ""
     exit_code = j.get("exit_code", {}).get("return_code", {}).get("number", "?")
+    reason = j.get("state", {}).get("reason", "") or ""
     return {
         "job_id": j.get("job_id", job_id),
         "name": j.get("name", "?"),
@@ -62,6 +63,7 @@ async def get_job_info(job_id: int) -> dict | None:
         "elapsed": _fmt_seconds(elapsed),
         "limit": _fmt_seconds(limit_minutes * 60) if limit_minutes else "∞",
         "exit_code": exit_code,
+        "reason": reason,
     }
 
 

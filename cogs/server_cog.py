@@ -89,6 +89,8 @@ class ServerCog(commands.Cog):
         embed.add_field(name="Elapsed", value=info["elapsed"], inline=True)
         embed.add_field(name="Time Limit", value=info["limit"], inline=True)
         embed.add_field(name="Exit Code", value=str(info["exit_code"]), inline=True)
+        if info.get("reason") and info["reason"] not in ("None", ""):
+            embed.add_field(name="Reason", value=info["reason"], inline=True)
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="server_balance", description="Show compute/GPU/memory allocation balance for the team")
@@ -190,9 +192,19 @@ class ServerCog(commands.Cog):
             elapsed = info["elapsed"] if info else prev["elapsed"]
             name = info["name"] if info else prev["name"]
 
+            user = info["user"] if info else prev.get("user", "—")
+            partition = info["partition"] if info else "—"
+            exit_code = str(info["exit_code"]) if info else "—"
+            reason = info.get("reason", "") if info else ""
+
+            detail_parts = [f"User: `{user}`", f"Partition: `{partition}`", f"Time: {elapsed}", f"Exit: `{exit_code}`"]
+            if reason and reason not in ("None", ""):
+                detail_parts.append(f"Reason: `{reason}`")
+
             for channel in channels:
                 await channel.send(
-                    f"{icon} Job `{job_id}` **{name}** — **{state}** | {elapsed}"
+                    f"{icon} Job `{job_id}` **{name}** — **{state}**\n"
+                    + " | ".join(detail_parts)
                 )
 
         self._job_snapshot = new_snapshot
