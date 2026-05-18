@@ -1,11 +1,13 @@
 import logging
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from server_client import get_jobs, get_job_info, get_balance, ACCOUNT
+from state import load_config, config_lock
 
 log = logging.getLogger(__name__)
+
 
 def _bar(pct: float, width: int = 12) -> str:
     filled = round(min(pct, 1.0) * width)
@@ -20,10 +22,24 @@ STATE_COLOR = {
     "CANCELLED": discord.Color.og_blurple(),
 }
 
+STATE_ICON = {
+    "COMPLETED": "✅",
+    "FAILED": "❌",
+    "CANCELLED": "🚫",
+    "TIMEOUT": "⏱️",
+}
+
 
 class ServerCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self._job_snapshot: dict[int, dict] = {}  # job_id -> row
+        self.job_poller.start()
+
+    def cog_unload(self):
+        self.job_poller.cancel()
+
+    # ── Slash commands ──────────────────────────────────────────────────────
 
     @app_commands.command(name="server_jobs", description="Show running/pending jobs for the team")
     async def jobs(self, interaction: discord.Interaction):
@@ -122,6 +138,62 @@ class ServerCog(commands.Cog):
             )
 
         await interaction.followup.send(embed=embed)
+
+    # ── Background job poller ───────────────────────────────────────────────
+
+    @tasks.loop(minutes=5)
+    async def job_poller(self):
+        async with config_lock:
+            cfg = load_config()
+        channel_id = cfg.get("update_channel_id")
+        if not channel_id:
+            return
+
+        try:
+            rows = await get_jobs()
+        except Exception as e:
+            log.error("Job poller failed: %s", e)
+            return
+
+        new_snapshot = {j["job_id"]: j for j in rows}
+
+        if not self._job_snapshot:
+            self._job_snapshot = new_snapshot
+            return
+
+        # Detect jobs that disappeared from queue
+        finished_ids = set(self._job_snapshot) - set(new_snapshot)
+        if not finished_ids:
+            self._job_snapshot = new_snapshot
+            return
+
+        channel = self.bot.get_channel(channel_id)
+        if channel is None:
+            self._job_snapshot = new_snapshot
+            return
+
+        for job_id in finished_ids:
+            prev = self._job_snapshot[job_id]
+            try:
+                info = await get_job_info(job_id)
+            except Exception as e:
+                log.error("sacct for job %s failed: %s", job_id, e)
+                continue
+
+            state = info["state"] if info else "UNKNOWN"
+            icon = STATE_ICON.get(state, "⚪")
+            elapsed = info["elapsed"] if info else prev["elapsed"]
+            name = info["name"] if info else prev["name"]
+
+            await channel.send(
+                f"{icon} Job `{job_id}` **{name}** — **{state}** | {elapsed}"
+            )
+
+        self._job_snapshot = new_snapshot
+
+    @job_poller.before_loop
+    async def before_job_poller(self):
+        await self.bot.wait_until_ready()
 
 
 async def setup(bot: commands.Bot):
