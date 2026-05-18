@@ -69,14 +69,16 @@ Stop with `Ctrl+C`.
 | `/setcompetition <slug>` | Set the Kaggle competition to track |
 | `/setchannel` | Set the current channel to receive auto-updates |
 | `/setinterval <minutes>` | How often to poll the leaderboard (min 5, default 30) |
-| `/setupdates leaderboard rank_changes` | Toggle what the bot posts automatically (both default to on) |
+| `/setleaderboard <on/off>` | Turn automatic leaderboard posting on or off (default on) |
+| `/setrankchanges <on/off>` | Turn rank change alerts on or off (default on) |
 
 **Example:**
 ```
 /setcompetition titanic
 /setchannel
 /setinterval 15
-/setupdates leaderboard:True rank_changes:False
+/setleaderboard False
+/setrankchanges True
 ```
 
 > The slug is the last part of the competition URL:

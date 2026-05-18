@@ -54,27 +54,28 @@ class ConfigCog(commands.Cog):
             save_config(cfg)
         await interaction.response.send_message(f"Polling interval set to **{minutes} minutes**.")
 
-    @app_commands.command(name="setupdates", description="Toggle what the bot posts automatically")
-    @app_commands.describe(
-        leaderboard="Post full leaderboard every interval",
-        rank_changes="Post alert when tracked team rank changes",
-    )
+    @app_commands.command(name="setleaderboard", description="Turn automatic leaderboard posting on or off")
+    @app_commands.describe(enabled="on or off")
     @is_owner_or_manager()
-    async def set_updates(
-        self,
-        interaction: discord.Interaction,
-        leaderboard: bool,
-        rank_changes: bool,
-    ):
+    async def set_leaderboard(self, interaction: discord.Interaction, enabled: bool):
         async with config_lock:
             cfg = load_config()
-            cfg["post_leaderboard"] = leaderboard
-            cfg["post_rank_changes"] = rank_changes
+            cfg["post_leaderboard"] = enabled
             save_config(cfg)
         await interaction.response.send_message(
-            f"Auto-updates: leaderboard={'on' if leaderboard else 'off'}, "
-            f"rank changes={'on' if rank_changes else 'off'}.",
-            ephemeral=True,
+            f"Auto leaderboard post: **{'on' if enabled else 'off'}**.", ephemeral=True
+        )
+
+    @app_commands.command(name="setrankchanges", description="Turn rank change alerts on or off")
+    @app_commands.describe(enabled="on or off")
+    @is_owner_or_manager()
+    async def set_rank_changes(self, interaction: discord.Interaction, enabled: bool):
+        async with config_lock:
+            cfg = load_config()
+            cfg["post_rank_changes"] = enabled
+            save_config(cfg)
+        await interaction.response.send_message(
+            f"Rank change alerts: **{'on' if enabled else 'off'}**.", ephemeral=True
         )
 
     @app_commands.command(name="status", description="Show current bot configuration")
@@ -90,10 +91,8 @@ class ConfigCog(commands.Cog):
         embed.add_field(name="Tracked Teams", value=str(len(tracked)), inline=True)
         server_account = os.environ.get("SERVER_ACCOUNT") or "—"
         embed.add_field(name="Server Account", value=server_account, inline=True)
-        post_lb = "on" if cfg.get("post_leaderboard", True) else "off"
-        post_rc = "on" if cfg.get("post_rank_changes", True) else "off"
-        embed.add_field(name="Auto Leaderboard", value=post_lb, inline=True)
-        embed.add_field(name="Rank Change Alerts", value=post_rc, inline=True)
+        embed.add_field(name="Auto Leaderboard", value="on" if cfg.get("post_leaderboard", True) else "off", inline=True)
+        embed.add_field(name="Rank Change Alerts", value="on" if cfg.get("post_rank_changes", True) else "off", inline=True)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
