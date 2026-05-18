@@ -4,7 +4,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from server_client import get_jobs, get_job_info, get_balance, ACCOUNT
-from state import load_config, config_lock
+from state import load_config, config_lock, load_guild_config
 
 log = logging.getLogger(__name__)
 
@@ -147,8 +147,12 @@ class ServerCog(commands.Cog):
     async def job_poller(self):
         async with config_lock:
             cfg = load_config()
-        channel_id = cfg.get("update_channel_id")
-        if not channel_id:
+        channel_ids = [
+            g.get("update_channel_id")
+            for g in cfg.get("guilds", {}).values()
+            if g.get("update_channel_id")
+        ]
+        if not channel_ids:
             return
 
         try:
@@ -163,14 +167,13 @@ class ServerCog(commands.Cog):
             self._job_snapshot = new_snapshot
             return
 
-        # Detect jobs that disappeared from queue
         finished_ids = set(self._job_snapshot) - set(new_snapshot)
         if not finished_ids:
             self._job_snapshot = new_snapshot
             return
 
-        channel = self.bot.get_channel(channel_id)
-        if channel is None:
+        channels = [self.bot.get_channel(cid) for cid in channel_ids if self.bot.get_channel(cid)]
+        if not channels:
             self._job_snapshot = new_snapshot
             return
 
@@ -187,9 +190,10 @@ class ServerCog(commands.Cog):
             elapsed = info["elapsed"] if info else prev["elapsed"]
             name = info["name"] if info else prev["name"]
 
-            await channel.send(
-                f"{icon} Job `{job_id}` **{name}** — **{state}** | {elapsed}"
-            )
+            for channel in channels:
+                await channel.send(
+                    f"{icon} Job `{job_id}` **{name}** — **{state}** | {elapsed}"
+                )
 
         self._job_snapshot = new_snapshot
 

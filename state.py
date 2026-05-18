@@ -17,3 +17,11 @@ def load_config() -> dict:
 def save_config(cfg: dict) -> None:
     with open(CONFIG_PATH, "w") as f:
         json.dump(cfg, f, indent=2)
+
+
+def load_guild_config(cfg: dict, guild_id: int) -> dict:
+    return cfg.get("guilds", {}).get(str(guild_id), {})
+
+
+def set_guild_config(cfg: dict, guild_id: int, guild_cfg: dict) -> None:
+    cfg.setdefault("guilds", {})[str(guild_id)] = guild_cfg

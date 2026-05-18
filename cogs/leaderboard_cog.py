@@ -5,7 +5,7 @@ from discord import app_commands
 from discord.ext import commands, tasks
 
 from kaggle_client import fetch_leaderboard
-from state import load_config, save_config, config_lock
+from state import load_config, save_config, config_lock, load_guild_config, set_guild_config
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def _build_embed(competition: str, rows: list[dict], title_prefix: str = "") -> 
 class LeaderboardCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self._last_snapshot: dict[str, dict] = {}
+        self._last_snapshot: dict[str, dict[str, dict]] = {}  # guild_id -> teamName -> row
         self.poller.start()
 
     def cog_unload(self):
@@ -40,7 +40,8 @@ class LeaderboardCog(commands.Cog):
     async def leaderboard(self, interaction: discord.Interaction):
         async with config_lock:
             cfg = load_config()
-        competition = cfg.get("competition")
+        guild_cfg = load_guild_config(cfg, interaction.guild_id)
+        competition = guild_cfg.get("competition")
         if not competition:
             await interaction.response.send_message(
                 "No competition set. Use `/setcompetition <slug>` first.", ephemeral=True
@@ -68,12 +69,14 @@ class LeaderboardCog(commands.Cog):
     async def track(self, interaction: discord.Interaction, team: str):
         async with config_lock:
             cfg = load_config()
-            tracked: list[str] = cfg.get("tracked_teams", [])
+            guild_cfg = load_guild_config(cfg, interaction.guild_id)
+            tracked: list[str] = guild_cfg.get("tracked_teams", [])
             if team in tracked:
                 await interaction.response.send_message(f"Already tracking **{team}**.", ephemeral=True)
                 return
             tracked.append(team)
-            cfg["tracked_teams"] = tracked
+            guild_cfg["tracked_teams"] = tracked
+            set_guild_config(cfg, interaction.guild_id, guild_cfg)
             save_config(cfg)
         await interaction.response.send_message(f"Now tracking **{team}**. You'll be alerted on rank changes.", ephemeral=True)
 
@@ -82,12 +85,14 @@ class LeaderboardCog(commands.Cog):
     async def untrack(self, interaction: discord.Interaction, team: str):
         async with config_lock:
             cfg = load_config()
-            tracked: list[str] = cfg.get("tracked_teams", [])
+            guild_cfg = load_guild_config(cfg, interaction.guild_id)
+            tracked: list[str] = guild_cfg.get("tracked_teams", [])
             if team not in tracked:
                 await interaction.response.send_message(f"**{team}** is not being tracked.", ephemeral=True)
                 return
             tracked.remove(team)
-            cfg["tracked_teams"] = tracked
+            guild_cfg["tracked_teams"] = tracked
+            set_guild_config(cfg, interaction.guild_id, guild_cfg)
             save_config(cfg)
         await interaction.response.send_message(f"Stopped tracking **{team}**.", ephemeral=True)
 
@@ -95,7 +100,8 @@ class LeaderboardCog(commands.Cog):
     async def tracklist(self, interaction: discord.Interaction):
         async with config_lock:
             cfg = load_config()
-        tracked: list[str] = cfg.get("tracked_teams", [])
+        guild_cfg = load_guild_config(cfg, interaction.guild_id)
+        tracked: list[str] = guild_cfg.get("tracked_teams", [])
         if not tracked:
             await interaction.response.send_message("No teams are being tracked.", ephemeral=True)
             return
@@ -106,60 +112,74 @@ class LeaderboardCog(commands.Cog):
 
     @tasks.loop(minutes=1)
     async def poller(self):
-        # Read config and update tick — lock released before network call
         async with config_lock:
             cfg = load_config()
-            competition = cfg.get("competition")
-            channel_id = cfg.get("update_channel_id")
-            interval = cfg.get("interval_minutes", 30)
-            tracked = list(cfg.get("tracked_teams", []))
-            post_leaderboard = cfg.get("post_leaderboard", True)
-            post_rank_changes = cfg.get("post_rank_changes", True)
+            guilds_cfg = cfg.get("guilds", {})
 
-            if not competition or not channel_id:
-                return
+            guilds_to_poll = []
+            for guild_id_str, guild_cfg in guilds_cfg.items():
+                competition = guild_cfg.get("competition")
+                channel_id = guild_cfg.get("update_channel_id")
+                interval = guild_cfg.get("interval_minutes", 30)
 
-            tick = cfg.get("_poll_tick", 0) + 1
-            if tick < interval:
-                cfg["_poll_tick"] = tick
-                save_config(cfg)
-                return
-            cfg["_poll_tick"] = 0
+                if not competition or not channel_id:
+                    continue
+
+                tick = guild_cfg.get("_poll_tick", 0) + 1
+                if tick < interval:
+                    guild_cfg["_poll_tick"] = tick
+                    continue
+
+                guild_cfg["_poll_tick"] = 0
+                guilds_to_poll.append({
+                    "guild_id": guild_id_str,
+                    "competition": competition,
+                    "channel_id": channel_id,
+                    "tracked": list(guild_cfg.get("tracked_teams", [])),
+                    "post_leaderboard": guild_cfg.get("post_leaderboard", True),
+                    "post_rank_changes": guild_cfg.get("post_rank_changes", True),
+                })
+
             save_config(cfg)
 
-        # Network call happens outside the lock
-        try:
-            rows = await asyncio.to_thread(fetch_leaderboard, competition)
-        except Exception as e:
-            log.error("Leaderboard poll failed: %s", e)
-            return
+        for guild_info in guilds_to_poll:
+            guild_id = guild_info["guild_id"]
+            competition = guild_info["competition"]
 
-        new_snapshot = {r["teamName"]: r for r in rows}
+            try:
+                rows = await asyncio.to_thread(fetch_leaderboard, competition)
+            except Exception as e:
+                log.error("Leaderboard poll failed for guild %s: %s", guild_id, e)
+                continue
 
-        if not self._last_snapshot:
-            self._last_snapshot = new_snapshot
-            return
+            new_snapshot = {r["teamName"]: r for r in rows}
+            last = self._last_snapshot.get(guild_id, {})
 
-        channel = self.bot.get_channel(channel_id)
-        if channel is None:
-            return
+            if not last:
+                self._last_snapshot[guild_id] = new_snapshot
+                continue
 
-        if post_leaderboard:
-            embed = _build_embed(competition, rows, title_prefix="🔄 ")
-            await channel.send(embed=embed)
+            channel = self.bot.get_channel(guild_info["channel_id"])
+            if channel is None:
+                self._last_snapshot[guild_id] = new_snapshot
+                continue
 
-        if post_rank_changes:
-            for team in tracked:
-                old = self._last_snapshot.get(team)
-                new = new_snapshot.get(team)
-                if old and new and old["rank"] != new["rank"]:
-                    direction = "⬆️" if new["rank"] < old["rank"] else "⬇️"
-                    await channel.send(
-                        f"{direction} **{team}** moved from rank **{old['rank']}** → **{new['rank']}** "
-                        f"(score: {new['score']})"
-                    )
+            if guild_info["post_leaderboard"]:
+                embed = _build_embed(competition, rows, title_prefix="🔄 ")
+                await channel.send(embed=embed)
 
-        self._last_snapshot = new_snapshot
+            if guild_info["post_rank_changes"]:
+                for team in guild_info["tracked"]:
+                    old = last.get(team)
+                    new = new_snapshot.get(team)
+                    if old and new and old["rank"] != new["rank"]:
+                        direction = "⬆️" if new["rank"] < old["rank"] else "⬇️"
+                        await channel.send(
+                            f"{direction} **{team}** moved from rank **{old['rank']}** → **{new['rank']}** "
+                            f"(score: {new['score']})"
+                        )
+
+            self._last_snapshot[guild_id] = new_snapshot
 
     @poller.before_loop
     async def before_poller(self):
