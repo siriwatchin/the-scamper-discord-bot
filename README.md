@@ -28,7 +28,7 @@ KAGGLE_USERNAME=<Kaggle username>
 KAGGLE_KEY=<Kaggle API key>
 OWNER_ID=<Your Discord user ID>
 
-# Optional — required only if using /jobs, /jobinfo, /balance
+# Optional — required only if using /server_jobs, /server_jobinfo, /server_balance
 SERVER_HOST=<Cluster hostname>
 SERVER_USER=<Cluster username>
 SERVER_ACCOUNT=<Cluster account name>
@@ -49,6 +49,8 @@ python bot.py
 
 Stop with `Ctrl+C`.
 
+> Each Discord server the bot is in has its own independent configuration. Run the setup commands separately in each server.
+
 ---
 
 ## Commands
@@ -58,7 +60,7 @@ Stop with `Ctrl+C`.
 | Command | Description |
 |---------|-------------|
 | `/ping` | Check if the bot is online and show latency |
-| `/status` | Show current bot configuration (ephemeral) |
+| `/status` | Show current configuration for this server (only you can see) |
 
 ---
 
@@ -67,18 +69,17 @@ Stop with `Ctrl+C`.
 | Command | Description |
 |---------|-------------|
 | `/setcompetition <slug>` | Set the Kaggle competition to track |
-| `/setchannel` | Set the current channel to receive auto-updates |
+| `/clearcompetition` | Clear the competition for this server |
+| `/setchannel` | Set the current channel for all bot notifications (leaderboard, rank alerts, job completion) |
 | `/setleaderboardinterval <minutes>` | How often to poll the leaderboard (min 5, default 30) |
-| `/setleaderboard <on/off>` | Turn automatic leaderboard posting on or off (default on) |
-| `/setrankchanges <on/off>` | Turn rank change alerts on or off (default on) |
+| `/setleaderboard <True/False>` | Enable or disable automatic leaderboard posting (default on) |
+| `/setrankchanges <True/False>` | Enable or disable rank change alerts for tracked teams (default on) |
 
 **Example:**
 ```
 /setcompetition titanic
 /setchannel
 /setleaderboardinterval 15
-/setleaderboard False
-/setrankchanges True
 ```
 
 > The slug is the last part of the competition URL:
@@ -102,22 +103,22 @@ Stop with `Ctrl+C`.
 ### Server jobs
 
 > Requires `SERVER_HOST`, `SERVER_USER`, and `SERVER_ACCOUNT` to be set in `.env`.
+> Job completion alerts are sent to every Discord server that has a channel configured via `/setchannel`.
 
 | Command | Description |
 |---------|-------------|
 | `/server_jobs` | Show all running/pending jobs for the configured account |
-| `/server_jobinfo <job_id>` | Show details of a specific job (state, runtime, nodes, exit code) |
+| `/server_jobinfo <job_id>` | Show details of a specific job (state, user, partition, runtime, exit code) |
 | `/server_balance` | Show compute/GPU/memory allocation balance for the account |
 
 ---
 
 ## How auto-updates work
 
-1. The bot polls the leaderboard every N minutes (configured with `/setinterval`)
+1. The bot polls the leaderboard every N minutes per server (configured with `/setleaderboardinterval`)
 2. If **Auto Leaderboard** is on — posts a refreshed top-10 embed to the configured channel
 3. If **Rank Change Alerts** is on — sends a separate alert for any tracked team whose rank changed
-
-Both can be toggled independently with `/setupdates`.
+4. **Job completion** — bot polls server jobs every 5 minutes and alerts when a job finishes or fails
 
 ---
 
@@ -128,13 +129,13 @@ Logs are written to `logs/bot.log` and rotated daily at midnight. The last 30 da
 ```
 logs/
   bot.log              — today's log
-  bot.log.2026-05-17   — yesterday's log
+  bot.log.2026-05-18   — yesterday's log
   ...
 ```
 
 ---
 
-## First-time setup checklist
+## First-time setup checklist (per Discord server)
 
 ```
 1. Run: python bot.py
@@ -144,7 +145,7 @@ logs/
    /setleaderboardinterval 15
    /track <your team name>
 3. Run /leaderboard to confirm Kaggle data is being fetched correctly
-4. Run /jobs to confirm server connection is working (if SERVER_* is configured)
+4. Run /server_jobs to confirm server connection is working (if SERVER_* is configured)
 ```
 
 ---
@@ -155,12 +156,14 @@ logs/
 bot.py               — entry point + logging setup
 cogs/
   leaderboard_cog.py — /leaderboard, /track, /untrack, /tracklist + background poller
-  config_cog.py      — /setcompetition, /setchannel, /setinterval, /setupdates, /status
-  server_cog.py      — /jobs, /jobinfo, /balance (loaded only if SERVER_* env vars are set)
+  config_cog.py      — /setcompetition, /clearcompetition, /setchannel,
+                        /setleaderboardinterval, /setleaderboard, /setrankchanges, /status
+  server_cog.py      — /server_jobs, /server_jobinfo, /server_balance + job completion poller
+                        (loaded only if SERVER_* env vars are set)
 kaggle_client.py     — Kaggle API wrapper
 server_client.py     — SSH client for compute server commands
-state.py             — read/write config.json
+state.py             — read/write config.json (per-guild)
 logs/                — daily rotating log files (not committed)
 .env                 — credentials (not committed)
-config.json          — bot settings (not committed)
+config.json          — bot settings per Discord server (not committed)
 ```

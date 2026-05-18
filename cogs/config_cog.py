@@ -45,6 +45,17 @@ class ConfigCog(commands.Cog):
             save_config(cfg)
         await interaction.response.send_message(f"Auto-update channel set to <#{interaction.channel_id}>.")
 
+    @app_commands.command(name="clearcompetition", description="Clear the Kaggle competition for this server")
+    @is_owner_or_manager()
+    async def clear_competition(self, interaction: discord.Interaction):
+        async with config_lock:
+            cfg = load_config()
+            guild_cfg = load_guild_config(cfg, interaction.guild_id)
+            guild_cfg.pop("competition", None)
+            set_guild_config(cfg, interaction.guild_id, guild_cfg)
+            save_config(cfg)
+        await interaction.response.send_message("Competition cleared.", ephemeral=True)
+
     @app_commands.command(name="setleaderboardinterval", description="Set how often (in minutes) the leaderboard is checked")
     @app_commands.describe(minutes="How often to fetch the Kaggle leaderboard, in minutes (minimum 5)")
     @is_owner_or_manager()
