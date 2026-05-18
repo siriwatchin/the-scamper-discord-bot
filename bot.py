@@ -28,6 +28,7 @@ def _setup_logging() -> None:
 
     logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
     logging.getLogger("discord").setLevel(logging.WARNING)
+    logging.getLogger("asyncssh").setLevel(logging.WARNING)
 
 
 _setup_logging()

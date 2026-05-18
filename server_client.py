@@ -59,7 +59,7 @@ async def get_job_info(job_id: int) -> dict | None:
 
 
 async def get_balance() -> dict:
-    output = await _run(f"sbalance -A {ACCOUNT} --json")
+    output = await _run("sbalance --json")
     return json.loads(output)
 
 
