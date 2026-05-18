@@ -95,6 +95,7 @@ Stop with `Ctrl+C`.
 | `/track <team name>` | Watch a team and get alerted when their rank changes — only you can see the confirmation |
 | `/untrack <team name>` | Stop watching a team — only you can see the confirmation |
 | `/tracklist` | Show all teams currently being tracked — only you can see the response |
+| `/cleartracked` | Remove all tracked teams for this server — only you can see the confirmation |
 
 > The team name must match exactly as shown on the Kaggle leaderboard.
 
@@ -155,7 +156,7 @@ logs/
 ```
 bot.py               — entry point + logging setup
 cogs/
-  leaderboard_cog.py — /leaderboard, /track, /untrack, /tracklist + background poller
+  leaderboard_cog.py — /leaderboard, /track, /untrack, /tracklist, /cleartracked + background poller
   config_cog.py      — /setcompetition, /clearcompetition, /setchannel,
                         /setleaderboardinterval, /setleaderboard, /setrankchanges, /status
   server_cog.py      — /server_jobs, /server_jobinfo, /server_balance + job completion poller

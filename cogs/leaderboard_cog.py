@@ -96,6 +96,16 @@ class LeaderboardCog(commands.Cog):
             save_config(cfg)
         await interaction.response.send_message(f"Stopped tracking **{team}**.", ephemeral=True)
 
+    @app_commands.command(name="cleartracked", description="Remove all tracked teams for this server")
+    async def cleartracked(self, interaction: discord.Interaction):
+        async with config_lock:
+            cfg = load_config()
+            guild_cfg = load_guild_config(cfg, interaction.guild_id)
+            guild_cfg["tracked_teams"] = []
+            set_guild_config(cfg, interaction.guild_id, guild_cfg)
+            save_config(cfg)
+        await interaction.response.send_message("All tracked teams cleared.", ephemeral=True)
+
     @app_commands.command(name="tracklist", description="Show all teams currently being tracked")
     async def tracklist(self, interaction: discord.Interaction):
         async with config_lock:
