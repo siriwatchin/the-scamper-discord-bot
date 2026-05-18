@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import asyncssh
 
 HOST = os.environ["SERVER_HOST"]
@@ -17,12 +18,14 @@ async def get_jobs() -> list[dict]:
     output = await _run(f"squeue -A {ACCOUNT} --json")
     data = json.loads(output)
     jobs = []
+    now = int(time.time())
     for j in data.get("jobs", []):
         state = j.get("job_state", ["UNKNOWN"])
         if isinstance(state, list):
             state = state[0]
-        elapsed = j.get("time", {}).get("elapsed", 0)
-        limit = j.get("time", {}).get("limit", {}).get("number", 0)
+        start = j.get("start_time", {}).get("number", 0)
+        elapsed = (now - start) if start else 0
+        limit_minutes = j.get("time_limit", {}).get("number", 0)
         jobs.append({
             "job_id": j.get("job_id", "?"),
             "name": j.get("name", "?"),
@@ -30,7 +33,7 @@ async def get_jobs() -> list[dict]:
             "state": state,
             "nodes": j.get("nodes", "?"),
             "elapsed": _fmt_seconds(elapsed),
-            "limit": _fmt_seconds(limit * 60) if limit else "∞",
+            "limit": _fmt_seconds(limit_minutes * 60) if limit_minutes else "∞",
         })
     return jobs
 
