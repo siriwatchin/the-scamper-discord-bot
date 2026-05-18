@@ -87,36 +87,36 @@ class ServerCog(commands.Cog):
             await interaction.followup.send(f"No balance data found for account `{ACCOUNT}`.", ephemeral=True)
             return
 
-        embed = discord.Embed(title=f"Account Balance — {ACCOUNT}", color=discord.Color.gold())
+        pct_remaining = data.get("percent_remaining", 1.0)
+        sh_used = data.get("sh_used", 0.0)
+        sh_alloc = data.get("sh_alloc", 0.0)
+        sh_remaining = data.get("sh_remaining", 0.0)
 
-        pct_used = data.get("percent_used", 0)
-        su_used = data.get("su_used", 0)
-        su_alloc = data.get("su_alloc", 0)
-        su_remaining = data.get("su_remaining", 0)
-        embed.add_field(
-            name="Service Units",
-            value=(
-                f"{_bar(pct_used)}\n"
-                f"Used: `{su_used:,}` | Alloc: `{su_alloc:,}` | Remaining: `{su_remaining:,}`\n"
-                f"({pct_used * 100:.1f}% used)"
+        embed = discord.Embed(
+            title=f"Account Balance — {ACCOUNT}",
+            description=(
+                f"{_bar(pct_remaining)} **{pct_remaining * 100:.2f}% remaining**\n"
+                f"Used: `{sh_used:.2f}` SHr | Alloc: `{sh_alloc:.2f}` SHr | Remaining: `{sh_remaining:.2f}` SHr"
             ),
-            inline=False,
+            color=discord.Color.gold(),
         )
 
         for label, used_key, alloc_key, remaining_key in [
-            ("Compute (hrs)", "su_used_compute", "su_alloc_compute", "su_remaining_compute"),
-            ("GPU (hrs)",     "su_used_gpu",     "su_alloc_gpu",     "su_remaining_gpu"),
-            ("Memory (hrs)",  "su_used_memory",  "su_alloc_memory",  "su_remaining_memory"),
+            ("Compute (SHr)", "su_used_compute", "su_alloc_compute", "su_remaining_compute"),
+            ("GPU (SHr)",     "su_used_gpu",     "su_alloc_gpu",     "su_remaining_gpu"),
+            ("Memory (SHr)",  "su_used_memory",  "su_alloc_memory",  "su_remaining_memory"),
         ]:
-            used = data.get(used_key, 0)
-            alloc = data.get(alloc_key, 0)
-            remaining = data.get(remaining_key, 0)
-            pct = (used / alloc) if alloc else 0
+            used = data.get(used_key, 0.0)
+            alloc = data.get(alloc_key, 0.0)
+            remaining = data.get(remaining_key, 0.0)
+            if alloc == 0:
+                continue
+            pct_rem = remaining / alloc
             embed.add_field(
                 name=label,
                 value=(
-                    f"{_bar(pct)}\n"
-                    f"Used: `{used:.1f}` | Alloc: `{alloc:.1f}` | Remaining: `{remaining:.1f}`"
+                    f"{_bar(pct_rem)} {pct_rem * 100:.1f}% remaining\n"
+                    f"Used: `{used:.2f}` | Alloc: `{alloc:.2f}` | Remaining: `{remaining:.2f}`"
                 ),
                 inline=False,
             )
