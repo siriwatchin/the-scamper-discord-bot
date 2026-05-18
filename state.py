@@ -1,7 +1,10 @@
+import asyncio
 import json
 import os
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+
+config_lock = asyncio.Lock()
 
 
 def load_config() -> dict:

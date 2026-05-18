@@ -4,6 +4,7 @@ __pycache__/
 *.py[cod]
 .kaggle/
 *.log
+logs/
 .venv/
 venv/
 .vscode/

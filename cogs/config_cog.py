@@ -3,7 +3,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from state import load_config, save_config
+from state import load_config, save_config, config_lock
 
 _raw = os.environ.get("OWNER_ID")
 OWNER_ID: int | None = int(_raw) if _raw else None
@@ -26,17 +26,19 @@ class ConfigCog(commands.Cog):
     @app_commands.describe(slug="The Kaggle competition slug, e.g. titanic")
     @is_owner_or_manager()
     async def set_competition(self, interaction: discord.Interaction, slug: str):
-        cfg = load_config()
-        cfg["competition"] = slug
-        save_config(cfg)
+        async with config_lock:
+            cfg = load_config()
+            cfg["competition"] = slug
+            save_config(cfg)
         await interaction.response.send_message(f"Competition set to **{slug}**.")
 
     @app_commands.command(name="setchannel", description="Set the channel for leaderboard auto-updates")
     @is_owner_or_manager()
     async def set_channel(self, interaction: discord.Interaction):
-        cfg = load_config()
-        cfg["update_channel_id"] = interaction.channel_id
-        save_config(cfg)
+        async with config_lock:
+            cfg = load_config()
+            cfg["update_channel_id"] = interaction.channel_id
+            save_config(cfg)
         await interaction.response.send_message(f"Auto-update channel set to <#{interaction.channel_id}>.")
 
     @app_commands.command(name="setinterval", description="Set how often (in minutes) the leaderboard is checked")
@@ -46,10 +48,53 @@ class ConfigCog(commands.Cog):
         if minutes < 5:
             await interaction.response.send_message("Minimum interval is 5 minutes.", ephemeral=True)
             return
-        cfg = load_config()
-        cfg["interval_minutes"] = minutes
-        save_config(cfg)
+        async with config_lock:
+            cfg = load_config()
+            cfg["interval_minutes"] = minutes
+            save_config(cfg)
         await interaction.response.send_message(f"Polling interval set to **{minutes} minutes**.")
+
+    @app_commands.command(name="setupdates", description="Toggle what the bot posts automatically")
+    @app_commands.describe(
+        leaderboard="Post full leaderboard every interval",
+        rank_changes="Post alert when tracked team rank changes",
+    )
+    @is_owner_or_manager()
+    async def set_updates(
+        self,
+        interaction: discord.Interaction,
+        leaderboard: bool,
+        rank_changes: bool,
+    ):
+        async with config_lock:
+            cfg = load_config()
+            cfg["post_leaderboard"] = leaderboard
+            cfg["post_rank_changes"] = rank_changes
+            save_config(cfg)
+        await interaction.response.send_message(
+            f"Auto-updates: leaderboard={'on' if leaderboard else 'off'}, "
+            f"rank changes={'on' if rank_changes else 'off'}.",
+            ephemeral=True,
+        )
+
+    @app_commands.command(name="status", description="Show current bot configuration")
+    async def status(self, interaction: discord.Interaction):
+        async with config_lock:
+            cfg = load_config()
+        embed = discord.Embed(title="Bot Status", color=discord.Color.blurple())
+        embed.add_field(name="Competition", value=cfg.get("competition") or "—", inline=True)
+        embed.add_field(name="Interval", value=f"{cfg.get('interval_minutes', 30)} min", inline=True)
+        channel_id = cfg.get("update_channel_id")
+        embed.add_field(name="Update Channel", value=f"<#{channel_id}>" if channel_id else "—", inline=True)
+        tracked = cfg.get("tracked_teams", [])
+        embed.add_field(name="Tracked Teams", value=str(len(tracked)), inline=True)
+        server_account = os.environ.get("SERVER_ACCOUNT") or "—"
+        embed.add_field(name="Server Account", value=server_account, inline=True)
+        post_lb = "on" if cfg.get("post_leaderboard", True) else "off"
+        post_rc = "on" if cfg.get("post_rank_changes", True) else "off"
+        embed.add_field(name="Auto Leaderboard", value=post_lb, inline=True)
+        embed.add_field(name="Rank Change Alerts", value=post_rc, inline=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def cog_app_command_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(error, app_commands.CheckFailure):

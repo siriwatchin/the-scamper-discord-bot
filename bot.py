@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import os
+from logging.handlers import TimedRotatingFileHandler
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -8,6 +10,28 @@ load_dotenv()
 
 TOKEN = os.environ["DISCORD_TOKEN"]
 
+
+def _setup_logging() -> None:
+    os.makedirs("logs", exist_ok=True)
+    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+    file_handler = TimedRotatingFileHandler(
+        filename="logs/bot.log",
+        when="midnight",
+        backupCount=30,
+        encoding="utf-8",
+    )
+    file_handler.setFormatter(fmt)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(fmt)
+
+    logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
+    logging.getLogger("discord").setLevel(logging.WARNING)
+
+
+_setup_logging()
+
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -15,6 +39,8 @@ COGS = [
     "cogs.config_cog",
     "cogs.leaderboard_cog",
 ]
+
+SERVER_VARS = ["SERVER_HOST", "SERVER_USER", "SERVER_ACCOUNT"]
 
 
 @bot.event
@@ -36,6 +62,12 @@ async def main():
     async with bot:
         for cog in COGS:
             await bot.load_extension(cog)
+        if all(os.environ.get(v) for v in SERVER_VARS):
+            await bot.load_extension("cogs.server_cog")
+            print("Server cog loaded.")
+        else:
+            missing = [v for v in SERVER_VARS if not os.environ.get(v)]
+            print(f"Server cog skipped (missing: {missing}).")
         await bot.start(TOKEN)
 
 
