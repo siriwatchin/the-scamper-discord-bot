@@ -28,7 +28,7 @@ KAGGLE_USERNAME=<Kaggle username>
 KAGGLE_KEY=<Kaggle API key>
 OWNER_ID=<Your Discord user ID>
 
-# Optional — required only if using /server_jobs, /server_jobinfo, /server_balance
+# Optional — required only if using /server_jobs, /server_jobinfo, /server_balance, /server_usage
 SERVER_HOST=<Cluster hostname>
 SERVER_USER=<Cluster username>
 SERVER_ACCOUNT=<Cluster account name>
@@ -109,8 +109,9 @@ Stop with `Ctrl+C`.
 | Command | Description |
 |---------|-------------|
 | `/server_jobs` | Show all running/pending jobs for the configured account |
-| `/server_jobinfo <job_id>` | Show details of a specific job (state, user, partition, runtime, exit code) |
+| `/server_jobinfo <job_id>` | Show details of a specific job (state, user, partition, runtime, exit code, failure reason) |
 | `/server_balance` | Show compute/GPU/memory allocation balance for the account |
+| `/server_usage` | Show per-user SHr usage breakdown for the team account |
 
 ---
 
@@ -159,7 +160,7 @@ cogs/
   leaderboard_cog.py — /leaderboard, /track, /untrack, /tracklist, /cleartracked + background poller
   config_cog.py      — /setcompetition, /clearcompetition, /setchannel,
                         /setleaderboardinterval, /setleaderboard, /setrankchanges, /status
-  server_cog.py      — /server_jobs, /server_jobinfo, /server_balance + job completion poller
+  server_cog.py      — /server_jobs, /server_jobinfo, /server_balance, /server_usage + job completion poller
                         (loaded only if SERVER_* env vars are set)
 kaggle_client.py     — Kaggle API wrapper
 server_client.py     — SSH client for compute server commands

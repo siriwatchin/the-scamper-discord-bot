@@ -143,6 +143,42 @@ class ServerCog(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
+    @app_commands.command(name="server_usage", description="Show per-user compute usage breakdown for the team account")
+    async def usage(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        try:
+            data = await get_balance()
+        except Exception as e:
+            log.error("get_balance failed: %s", e)
+            await interaction.followup.send("Failed to fetch balance. Check bot logs for details.", ephemeral=True)
+            return
+
+        if data is None:
+            await interaction.followup.send(f"No balance data found for account `{ACCOUNT}`.", ephemeral=True)
+            return
+
+        users = data.get("users", [])
+        sh_used_total = data.get("sh_used", 0.0)
+        sh_alloc = data.get("sh_alloc", 0.0)
+        sh_remaining = data.get("sh_remaining", 0.0)
+
+        header = f"{'User':<10} {'SHr Used':>10}  {'% of Total':>10}"
+        sep = "─" * len(header)
+        lines = [header, sep]
+        for u in sorted(users, key=lambda x: x.get("sh_used", 0), reverse=True):
+            lines.append(
+                f"{u['user']:<10} {u['sh_used']:>10.2f}  {u['percent_used'] * 100:>9.2f}%"
+            )
+        lines.append(sep)
+        lines.append(f"{'Total':<10} {sh_used_total:>10.2f}  {'100.00%':>10}")
+
+        embed = discord.Embed(
+            title=f"Usage by User — {ACCOUNT}",
+            description=f"Alloc: `{sh_alloc:.2f}` SHr | Remaining: `{sh_remaining:.2f}` SHr\n```\n" + "\n".join(lines) + "\n```",
+            color=discord.Color.gold(),
+        )
+        await interaction.followup.send(embed=embed)
+
     # ── Background job poller ───────────────────────────────────────────────
 
     @tasks.loop(minutes=5)

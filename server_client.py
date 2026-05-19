@@ -68,7 +68,7 @@ async def get_job_info(job_id: int) -> dict | None:
 
 
 async def get_balance() -> dict | None:
-    output = await _run("sbalance --json")
+    output = await _run("sbalance -d --json")
     entries = json.loads(output)
     for entry in entries:
         if entry.get("account") == ACCOUNT:
